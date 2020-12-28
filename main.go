@@ -124,8 +124,9 @@ func dockerGitUpdate() {
 		Progress:   os.Stdout,
 	})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
-		fmt.Printf("pull error :%s", err)
+		fmt.Printf("pull error :%s\n", err)
 	}
+	fmt.Printf("pull error2 :%s\n", err)
 }
 
 func dockerRun(ip string, file string) {
@@ -173,10 +174,9 @@ func dockercompose() {
 
 func main() {
 	dockerInitGit()
-		for {
-			dockerGitUpdate()
-	//		dockercompose()
-			time.Sleep(1 * time.Second)
-		}
-
+	for {
+		dockerGitUpdate()
+//		dockercompose()
+		time.Sleep(1 * time.Second)
+	}
 }
