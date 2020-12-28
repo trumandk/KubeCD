@@ -8,6 +8,9 @@ import (
 	"github.com/go-git/go-git/plumbing/transport"
 	"github.com/go-git/go-git/plumbing/transport/ssh"
 	"time"
+	//"io/ioutil"
+	 "path/filepath"
+        "log"
 	"os/exec"
 )
 
@@ -85,8 +88,8 @@ func dockerGitCommit(filename string) {
 	}
 }
 
-func dockerGitUpdate() {
-	r, err := git.PlainOpen("/git/")
+func dockerGitUpdate(path string) {
+	r, err := git.PlainOpen(path)
 	head, _ := r.Head()
 	headCommit, _ := r.CommitObject(head.Hash())
 	headTree, _ := headCommit.Tree()
@@ -129,21 +132,21 @@ func dockerGitUpdate() {
 			fmt.Printf("changes to:%s from:%s what:%s\n", c.To.Name,c.From.Name, action.String())
 			if action.String() == "Insert" {
 				fmt.Printf("Insert to:%s\n", c.To.Name)
-				kubectlCommand("apply", c.To.Name)
+				kubectlCommand("apply", path + c.To.Name)
 			}
 			if action.String() == "Delete" {
 				fmt.Printf("Delete from:%s\n", c.From.Name)
-				kubectlCommand("delete", c.From.Name)
+				kubectlCommand("delete", path + c.From.Name)
 			}
 			if action.String() == "Modify" {
 				fmt.Printf("Modify to:%s\n", c.To.Name)
-				kubectlCommand("apply", c.To.Name)
+				kubectlCommand("apply", path + c.To.Name)
 			}
 		}
 }
 
 func kubectlCommand(what string, file string) {
-	out, err := exec.Command("/kubectl", what, "-f", "/git/" + file, "--wait").CombinedOutput()
+	out, err := exec.Command("/kubectl", what, "-f", file, "--wait").CombinedOutput()
 
 	if err != nil {
 		fmt.Printf("Error updating:%s Message:%s", file, err)
@@ -162,10 +165,24 @@ func kubectlStatus() {
 	fmt.Println(output)
 }
 
+func kubeInit(path string) {
+	filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+        if err != nil {
+            log.Fatalf(err.Error())
+        }
+	if filepath.Ext(info.Name()) == ".yaml" {
+		fmt.Printf("File Name: %s\n", path)
+		kubectlCommand("apply", path)
+	}
+        return nil
+    })
+}
+
 func main() {
 	dockerInitGit()
+	kubeInit("/git/")
 	for {
-		dockerGitUpdate()
+		dockerGitUpdate("/git/")
 		kubectlStatus()
 		time.Sleep(1 * time.Second)
 	}
