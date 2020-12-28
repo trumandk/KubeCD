@@ -4,31 +4,15 @@ import (
 	"fmt"
 	"os"
 	"github.com/go-git/go-git"
-	//"github.com/go-git/go-git/utils/merkletrie"
-	//"github.com/go-git/go-git/utils/merkletrie/noder"
 	"github.com/go-git/go-git/plumbing/object"
 	"github.com/go-git/go-git/plumbing/transport"
 	"github.com/go-git/go-git/plumbing/transport/ssh"
 	"time"
-	//"io"
-	"io/ioutil"
 	"os/exec"
-	"log"
-	//"bytes"
-	/*
-	"bytes"
-	"crypto/subtle"
-	"github.com/tidwall/sjson"
-	"io"
-	"io/ioutil"
-	"net/http"
-	"strings"
-	*/
 )
 
 func MyPublicKeys() transport.AuthMethod {
 	publicKeys, err := ssh.NewPublicKeysFromFile("git", "/root/.ssh/id_rsa", "")
-
 	if err != nil {
 		panic(err)
 	}
@@ -36,16 +20,6 @@ func MyPublicKeys() transport.AuthMethod {
 }
 
 var publicKeys = MyPublicKeys()
-
-func fileExists(filename string) bool {
-	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return !info.IsDir()
-}
-
-
 
 func dockerInitGit() {
 	err := os.RemoveAll("/git/")
@@ -114,7 +88,6 @@ func dockerGitCommit(filename string) {
 func dockerGitUpdate() {
 	r, err := git.PlainOpen("/git/")
 	head, _ := r.Head()
-//	hash := head.Hash()
 	headCommit, _ := r.CommitObject(head.Hash())
 	headTree, _ := headCommit.Tree()
 	if err != nil {
@@ -145,15 +118,12 @@ func dockerGitUpdate() {
 
 	fmt.Println(commit)
 	tree, _ := commit.Tree()
-	//headTree, _ := HeadCommit.Tree()
 
 	changes, err := headTree.Diff(tree)
 	if err != nil {
 		fmt.Printf("diff error :%s\n", err)
 		return
 	}
-
-
 		for _, c := range changes {
 			action, _ := c.Action()
 			fmt.Printf("changes to:%s from:%s what:%s\n", c.To.Name,c.From.Name, action.String())
@@ -172,18 +142,6 @@ func dockerGitUpdate() {
 		}
 }
 
-func dockerRun(ip string, file string) {
-	out, err := exec.Command("/usr/bin/docker-compose", "--compatibility", "-p", file, "--env-file", "/git/docker/env", "-H", "ssh://core@"+ip, "-f", "/git/docker/"+file, "up", "-d", "--remove-orphans").CombinedOutput()
-
-	if err != nil {
-		fmt.Printf("Error updating:%s Message:%s", ip, err)
-	}
-	output := string(out[:])
-	//	if len(output) > 0 {
-	fmt.Println(output)
-	//	}
-}
-
 func kubectlCommand(what string, file string) {
 	out, err := exec.Command("/kubectl", what, "-f", "/git/" + file, "--wait").CombinedOutput()
 
@@ -191,9 +149,7 @@ func kubectlCommand(what string, file string) {
 		fmt.Printf("Error updating:%s Message:%s", file, err)
 	}
 	output := string(out[:])
-	//	if len(output) > 0 {
 	fmt.Println(output)
-	//	}
 }
 
 func kubectlStatus() {
@@ -203,46 +159,14 @@ func kubectlStatus() {
 		fmt.Printf("Error get status Message:%s", err)
 	}
 	output := string(out[:])
-	//	if len(output) > 0 {
 	fmt.Println(output)
-	//	}
 }
-
-func dockerClean(ip string, file string) {
-	out, err := exec.Command("/usr/bin/docker-compose", "-p", file, "-H", "ssh://core@"+ip).CombinedOutput()
-
-	if err != nil {
-		fmt.Printf("Error updating:%s Message:%s", ip, err)
-	}
-	output := string(out[:])
-	//	if len(output) > 0 {
-	fmt.Println(output)
-	//	}
-}
-
-func dockercompose() {
-
-	nodes, err := ioutil.ReadDir("/git/docker/")
-	if err != nil {
-		log.Fatal(err)
-	}
-	for _, f := range nodes {
-		if f.Name() != "env" {
-			fmt.Printf("docker-compose :%s\n", f.Name())
-
-//			dockerRun(f.Name(), "all")
-//			dockerRun(f.Name(), f.Name())
-		}
-	}
-}
-
 
 func main() {
 	dockerInitGit()
 	for {
 		dockerGitUpdate()
 		kubectlStatus()
-//		dockercompose()
 		time.Sleep(1 * time.Second)
 	}
 }
