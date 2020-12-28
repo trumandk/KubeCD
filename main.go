@@ -179,8 +179,12 @@ func kubeInit(path string) {
 }
 
 func main() {
-	dockerInitGit()
-	kubeInit("/git/")
+	if _, err := os.Stat("/git/.git/"); err == nil {
+		fmt.Printf("Using existing git repo \n")
+	} else if os.IsNotExist(err) {
+		dockerInitGit()
+		kubeInit("/git/")
+	}
 	for {
 		dockerGitUpdate("/git/")
 		kubectlStatus()
