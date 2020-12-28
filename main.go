@@ -159,37 +159,48 @@ func dockerGitUpdate() {
 			fmt.Printf("changes to:%s from:%s what:%s\n", c.To.Name,c.From.Name, action.String())
 			if action.String() == "Insert" {
 				fmt.Printf("Insert to:%s\n", c.To.Name)
+				kubectlCommand("apply", c.To.Name)
 			}
 			if action.String() == "Delete" {
 				fmt.Printf("Delete from:%s\n", c.From.Name)
+				kubectlCommand("delete", c.From.Name)
 			}
 			if action.String() == "Modify" {
 				fmt.Printf("Modify to:%s\n", c.To.Name)
+				kubectlCommand("apply", c.To.Name)
 			}
 		}
-	//merkletrie.DiffTree(tree, tree, isEquals)
-/*
-	tree.Files().ForEach(func(f *object.File) error {
-		fmt.Printf("100644 blob %s    %s\n", f.Hash, f.Name)
-		return nil
-	})*/
-//	fileStats, _ := r.StatsContext(context.Background())
-//	fileStats[0].Addition
 }
-/*
-func isEquals(a, b noder.Hasher) bool {
-	if bytes.Equal(a.Hash(), empty) || bytes.Equal(b.Hash(), empty) {
-		return false
-	}
 
-	return bytes.Equal(a.Hash(), b.Hash())
-}
-*/
 func dockerRun(ip string, file string) {
 	out, err := exec.Command("/usr/bin/docker-compose", "--compatibility", "-p", file, "--env-file", "/git/docker/env", "-H", "ssh://core@"+ip, "-f", "/git/docker/"+file, "up", "-d", "--remove-orphans").CombinedOutput()
 
 	if err != nil {
 		fmt.Printf("Error updating:%s Message:%s", ip, err)
+	}
+	output := string(out[:])
+	//	if len(output) > 0 {
+	fmt.Println(output)
+	//	}
+}
+
+func kubectlCommand(what string, file string) {
+	out, err := exec.Command("/kubectl", what, "-f", "/git/" + file, "--wait").CombinedOutput()
+
+	if err != nil {
+		fmt.Printf("Error updating:%s Message:%s", file, err)
+	}
+	output := string(out[:])
+	//	if len(output) > 0 {
+	fmt.Println(output)
+	//	}
+}
+
+func kubectlStatus() {
+	out, err := exec.Command("/kubectl","get", "pods").CombinedOutput()
+
+	if err != nil {
+		fmt.Printf("Error get status Message:%s", err)
 	}
 	output := string(out[:])
 	//	if len(output) > 0 {
@@ -230,6 +241,7 @@ func main() {
 	dockerInitGit()
 	for {
 		dockerGitUpdate()
+		kubectlStatus()
 //		dockercompose()
 		time.Sleep(1 * time.Second)
 	}
