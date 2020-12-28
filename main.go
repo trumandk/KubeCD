@@ -4,14 +4,17 @@ import (
 	"fmt"
 	"os"
 	"github.com/go-git/go-git"
+	//"github.com/go-git/go-git/utils/merkletrie"
+	//"github.com/go-git/go-git/utils/merkletrie/noder"
 	"github.com/go-git/go-git/plumbing/object"
 	"github.com/go-git/go-git/plumbing/transport"
 	"github.com/go-git/go-git/plumbing/transport/ssh"
 	"time"
 	//"io"
-	//"io/ioutil"
+	"io/ioutil"
 	"os/exec"
-	//"log"
+	"log"
+	//"bytes"
 	/*
 	"bytes"
 	"crypto/subtle"
@@ -110,12 +113,18 @@ func dockerGitCommit(filename string) {
 
 func dockerGitUpdate() {
 	r, err := git.PlainOpen("/git/")
+	head, _ := r.Head()
+//	hash := head.Hash()
+	headCommit, _ := r.CommitObject(head.Hash())
+	headTree, _ := headCommit.Tree()
 	if err != nil {
 		fmt.Printf("plain open :%s", err)
+		return
 	}
 	w, err := r.Worktree()
 	if err != nil {
 		fmt.Printf("worktree error :%s", err)
+		return
 	}
 
 	err = w.Pull(&git.PullOptions{
@@ -125,10 +134,57 @@ func dockerGitUpdate() {
 	})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		fmt.Printf("pull error :%s\n", err)
+		return
 	}
-	fmt.Printf("pull error2 :%s\n", err)
-}
+	if err == git.NoErrAlreadyUpToDate {
+		return
+	}
+	fmt.Printf("pull new files \n")
+	ref, _ := r.Head()
+	commit, _ := r.CommitObject(ref.Hash())
 
+	fmt.Println(commit)
+	tree, _ := commit.Tree()
+	//headTree, _ := HeadCommit.Tree()
+
+	changes, err := headTree.Diff(tree)
+	if err != nil {
+		fmt.Printf("diff error :%s\n", err)
+		return
+	}
+
+
+		for _, c := range changes {
+			action, _ := c.Action()
+			fmt.Printf("changes to:%s from:%s what:%s\n", c.To.Name,c.From.Name, action.String())
+			if action.String() == "Insert" {
+				fmt.Printf("Insert to:%s\n", c.To.Name)
+			}
+			if action.String() == "Delete" {
+				fmt.Printf("Delete from:%s\n", c.From.Name)
+			}
+			if action.String() == "Modify" {
+				fmt.Printf("Modify to:%s\n", c.To.Name)
+			}
+		}
+	//merkletrie.DiffTree(tree, tree, isEquals)
+/*
+	tree.Files().ForEach(func(f *object.File) error {
+		fmt.Printf("100644 blob %s    %s\n", f.Hash, f.Name)
+		return nil
+	})*/
+//	fileStats, _ := r.StatsContext(context.Background())
+//	fileStats[0].Addition
+}
+/*
+func isEquals(a, b noder.Hasher) bool {
+	if bytes.Equal(a.Hash(), empty) || bytes.Equal(b.Hash(), empty) {
+		return false
+	}
+
+	return bytes.Equal(a.Hash(), b.Hash())
+}
+*/
 func dockerRun(ip string, file string) {
 	out, err := exec.Command("/usr/bin/docker-compose", "--compatibility", "-p", file, "--env-file", "/git/docker/env", "-H", "ssh://core@"+ip, "-f", "/git/docker/"+file, "up", "-d", "--remove-orphans").CombinedOutput()
 
@@ -154,21 +210,19 @@ func dockerClean(ip string, file string) {
 }
 
 func dockercompose() {
-/*
 
 	nodes, err := ioutil.ReadDir("/git/docker/")
 	if err != nil {
 		log.Fatal(err)
 	}
 	for _, f := range nodes {
-		if f.Name() != "env" && f.Name() != "all" && dockerOnline(f.Name()) {
+		if f.Name() != "env" {
 			fmt.Printf("docker-compose :%s\n", f.Name())
 
-			dockerRun(f.Name(), "all")
-			dockerRun(f.Name(), f.Name())
+//			dockerRun(f.Name(), "all")
+//			dockerRun(f.Name(), f.Name())
 		}
 	}
-*/
 }
 
 
