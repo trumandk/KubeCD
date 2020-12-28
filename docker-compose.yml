@@ -1,0 +1,10 @@
+version: '3.3'
+services:
+  kubecd:
+    build: .
+    network_mode: host
+    volumes:
+      - ~/.ssh/:/root/.ssh/
+      - ~/.kube/config:/root/.kube/config
+    environment:
+      - GIT_CLUSTER="git@github.com:trumandk/cluster.git"
