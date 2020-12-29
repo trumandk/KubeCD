@@ -241,7 +241,7 @@ func main() {
 
         mux := http.NewServeMux()
         mux.HandleFunc("/", BasicAuth(status))
-	log.Println("Starting server on :80")
-        err := http.ListenAndServe(":80", mux)
+	log.Println("Starting server on :8042")
+        err := http.ListenAndServe(":8042", mux)
         log.Fatal(err)
 }
