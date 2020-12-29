@@ -154,7 +154,8 @@ func dockerGitUpdate(path string) {
 }
 
 func kubectlCommand(path string) {
-	out, err := exec.Command("/kubectl", "apply","--prune", "-f", path,"--recursive", "--all", "--wait").CombinedOutput()
+	exec.Command("/kubectl", "create","namespace", "kubecd").CombinedOutput()
+	out, err := exec.Command("/kubectl", "apply","--prune", "-f", path,"--recursive", "--all", "--wait", "--namespace", "kubecd").CombinedOutput()
 	if err != nil {
 		fmt.Printf("Error updating:%s Message:%s", path, err)
 	}
@@ -203,6 +204,7 @@ func main() {
         mux.HandleFunc("/nodes", BasicAuth(StatusWeb("nodes")))
         mux.HandleFunc("/services", BasicAuth(StatusWeb("services")))
         mux.HandleFunc("/configmaps", BasicAuth(StatusWeb("configmaps")))
+        mux.HandleFunc("/namespaces", BasicAuth(StatusWeb("namespaces")))
         mux.HandleFunc("/git", BasicAuth(gitWeb))
 	log.Println("Starting server on :8042")
         err := http.ListenAndServe(":8042", mux)
