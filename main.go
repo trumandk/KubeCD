@@ -70,7 +70,7 @@ func dockerGitCommit(path, hash string) {
 	}
 	w.Add("KubeCD.log")
 
-	commit, err2 := w.Commit("Auto-commit server:"+kubeCD_log, &git.CommitOptions{
+	commit, err2 := w.Commit("Kubernetes log:KubeCD.log", &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  "KubeCD",
 			Email: "auto@kubecd.io",
