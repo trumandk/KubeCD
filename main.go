@@ -8,7 +8,7 @@ import (
 	"github.com/go-git/go-git/plumbing/transport"
 	"github.com/go-git/go-git/plumbing/transport/ssh"
 	"time"
-	 "path/filepath"
+	 //"path/filepath"
         "log"
 	"net/http"
 	"os/exec"
@@ -125,9 +125,9 @@ func dockerGitCommit(path, hash string) {
 
 func dockerGitUpdate(path string) {
 	r, err := git.PlainOpen(path)
-	head, _ := r.Head()
-	headCommit, _ := r.CommitObject(head.Hash())
-	headTree, _ := headCommit.Tree()
+	//head, _ := r.Head()
+	//headCommit, _ := r.CommitObject(head.Hash())
+	//headTree, _ := headCommit.Tree()
 	if err != nil {
 		fmt.Printf("plain open :%s", err)
 		return
@@ -152,41 +152,15 @@ func dockerGitUpdate(path string) {
 	}
 	fmt.Printf("pull new files \n")
 	ref, _ := r.Head()
-	commit, _ := r.CommitObject(ref.Hash())
-
-	fmt.Println(commit)
-	tree, _ := commit.Tree()
-
-	changes, err := headTree.Diff(tree)
-	if err != nil {
-		fmt.Printf("diff error :%s\n", err)
-		return
-	}
-		for _, c := range changes {
-			action, _ := c.Action()
-			fmt.Printf("changes to:%s from:%s what:%s\n", c.To.Name,c.From.Name, action.String())
-			if action.String() == "Insert" && filepath.Ext(c.To.Name) == ".yaml" {
-				fmt.Printf("Insert to:%s\n", c.To.Name)
-				kubectlCommand("apply", path + c.To.Name)
-			}
-			if action.String() == "Delete" && filepath.Ext(c.From.Name) == ".yaml"  {
-				fmt.Printf("Delete from:%s\n", c.From.Name)
-				kubectlCommand("delete", path + c.From.Name)
-			}
-			if action.String() == "Modify" && filepath.Ext(c.To.Name) == ".yaml"  {
-				fmt.Printf("Modify to:%s\n", c.To.Name)
-				kubectlCommand("apply", path + c.To.Name)
-			}
-		}
+		kubectlCommand(path)
 		time.Sleep(10 * time.Second)
 		dockerGitCommit(path, ref.Hash().String())
 }
 
-func kubectlCommand(what string, file string) {
-	out, err := exec.Command("/kubectl", what, "-f", file, "--wait").CombinedOutput()
-
+func kubectlCommand(path string) {
+	out, err := exec.Command("/kubectl", "apply","--prune", "-f", path,"--recursive", "--all", "--wait").CombinedOutput()
 	if err != nil {
-		fmt.Printf("Error updating:%s Message:%s", file, err)
+		fmt.Printf("Error updating:%s Message:%s", path, err)
 	}
 	output := string(out[:])
 	fmt.Println(output)
@@ -203,21 +177,7 @@ func kubectlStatus(what string) string {
 	return output
 }
 
-func kubeInit(path string) {
-	filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-        if err != nil {
-            log.Fatalf(err.Error())
-        }
-	if filepath.Ext(info.Name()) == ".yaml" {
-		fmt.Printf("File Name: %s\n", path)
-		kubectlCommand("apply", path)
-	}
-        return nil
-    })
-}
 func status(w http.ResponseWriter, req *http.Request) {
-	//fmt.Fprintf(w, "<head>")
-        //fmt.Fprintf(w, "<title>KubeCD</title>")
 	menu(w, req)
 	fmt.Fprintf(w, "<pre>")
         fmt.Fprintf(w, kubectlStatus("nodes,pods,services,configmaps"))
@@ -238,11 +198,12 @@ func main() {
 		fmt.Printf("Using existing git repo \n")
 	} else if os.IsNotExist(err) {
 		dockerInitGit()
-		kubeInit("/git/")
+		kubectlCommand("/git/")
 	}
 	go func() {
 	for {
 		dockerGitUpdate("/git/")
+		kubectlCommand("/git/")
 	//	kubectlStatus()
 		time.Sleep(1 * time.Second)
 	}
