@@ -10,9 +10,31 @@ import (
 	"time"
 	 "path/filepath"
         "log"
+	"net/http"
 	"os/exec"
+	"crypto/subtle"
 	"bufio"
 )
+
+var username = os.Getenv("JUMPSTARTER_USERNAME")
+var password = os.Getenv("JUMPSTARTER_PASSWORD")
+
+func BasicAuth(handler http.HandlerFunc) http.HandlerFunc {
+        realm := "Please enter your username and password for this site"
+        return func(w http.ResponseWriter, r *http.Request) {
+
+                user, pass, ok := r.BasicAuth()
+
+                if !ok || subtle.ConstantTimeCompare([]byte(user), []byte(username)) != 1 || subtle.ConstantTimeCompare([]byte(pass), []byte(password)) != 1 {
+                        w.Header().Set("WWW-Authenticate", `Basic realm="`+realm+`"`)
+                        w.WriteHeader(401)
+                        w.Write([]byte("Unauthorised.\n"))
+                        return
+                }
+
+                handler(w, r)
+        }
+}
 
 func MyPublicKeys() transport.AuthMethod {
 	publicKeys, err := ssh.NewPublicKeysFromFile("git", "/root/.ssh/id_rsa", "")
@@ -143,15 +165,15 @@ func dockerGitUpdate(path string) {
 		for _, c := range changes {
 			action, _ := c.Action()
 			fmt.Printf("changes to:%s from:%s what:%s\n", c.To.Name,c.From.Name, action.String())
-			if action.String() == "Insert" {
+			if action.String() == "Insert" && filepath.Ext(c.To.Name) == ".yaml" {
 				fmt.Printf("Insert to:%s\n", c.To.Name)
 				kubectlCommand("apply", path + c.To.Name)
 			}
-			if action.String() == "Delete" {
+			if action.String() == "Delete" && filepath.Ext(c.From.Name) == ".yaml"  {
 				fmt.Printf("Delete from:%s\n", c.From.Name)
 				kubectlCommand("delete", path + c.From.Name)
 			}
-			if action.String() == "Modify" {
+			if action.String() == "Modify" && filepath.Ext(c.To.Name) == ".yaml"  {
 				fmt.Printf("Modify to:%s\n", c.To.Name)
 				kubectlCommand("apply", path + c.To.Name)
 			}
@@ -193,7 +215,13 @@ func kubeInit(path string) {
         return nil
     })
 }
-
+func status(w http.ResponseWriter, req *http.Request) {
+	fmt.Fprintf(w, "<head>")
+        fmt.Fprintf(w, "<title>KubeCD</title>")
+	fmt.Fprintf(w, "<pre>")
+        fmt.Fprintf(w, kubectlStatus())
+	fmt.Fprintf(w, "</pre>")
+}
 func main() {
 	if _, err := os.Stat("/git/.git/"); err == nil {
 		fmt.Printf("Using existing git repo \n")
@@ -201,9 +229,19 @@ func main() {
 		dockerInitGit()
 		kubeInit("/git/")
 	}
+	go func() {
 	for {
 		dockerGitUpdate("/git/")
 	//	kubectlStatus()
 		time.Sleep(1 * time.Second)
 	}
+}()
+
+
+
+        mux := http.NewServeMux()
+        mux.HandleFunc("/", BasicAuth(status))
+	log.Println("Starting server on :80")
+        err := http.ListenAndServe(":80", mux)
+        log.Fatal(err)
 }

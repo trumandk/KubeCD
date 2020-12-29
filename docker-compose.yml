@@ -8,4 +8,6 @@ services:
       - ~/cluster/:/git/
       - ~/.kube/config:/root/.kube/config
     environment:
-      - GIT_CLUSTER="git@github.com:trumandk/cluster.git"
+      - GIT_CLUSTER="git@github.com:trumandk/kube-cluster.git"
+      - JUMPSTARTER_USERNAME=admin
+      - JUMPSTARTER_PASSWORD=123
