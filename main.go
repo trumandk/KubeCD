@@ -8,7 +8,6 @@ import (
 	"github.com/go-git/go-git/plumbing/transport"
 	"github.com/go-git/go-git/plumbing/transport/ssh"
 	"time"
-	 //"path/filepath"
         "log"
 	"net/http"
 	"os/exec"
@@ -125,9 +124,6 @@ func dockerGitCommit(path, hash string) {
 
 func dockerGitUpdate(path string) {
 	r, err := git.PlainOpen(path)
-	//head, _ := r.Head()
-	//headCommit, _ := r.CommitObject(head.Hash())
-	//headTree, _ := headCommit.Tree()
 	if err != nil {
 		fmt.Printf("plain open :%s", err)
 		return
@@ -177,13 +173,6 @@ func kubectlStatus(what string) string {
 	return output
 }
 
-func status(w http.ResponseWriter, req *http.Request) {
-	menu(w, req)
-	fmt.Fprintf(w, "<pre>")
-        fmt.Fprintf(w, kubectlStatus("nodes,pods,services,configmaps"))
-	fmt.Fprintf(w, "</pre>")
-}
-
 func StatusWeb(what string) http.HandlerFunc {
         return func(w http.ResponseWriter, r *http.Request) {
 	menu(w, r)
@@ -194,21 +183,17 @@ func StatusWeb(what string) http.HandlerFunc {
 }
 
 func main() {
-	if _, err := os.Stat("/git/.git/"); err == nil {
-		fmt.Printf("Using existing git repo \n")
-	} else if os.IsNotExist(err) {
-		dockerInitGit()
-		kubectlCommand("/git/")
-	}
-	go func() {
-	for {
-		dockerGitUpdate("/git/")
-		kubectlCommand("/git/")
-	//	kubectlStatus()
-		time.Sleep(1 * time.Second)
-	}
-}()
 
+	dockerInitGit()
+	kubectlCommand("/git/")
+
+	go func() {
+		for {
+			dockerGitUpdate("/git/")
+			kubectlCommand("/git/")
+			time.Sleep(1 * time.Second)
+		}
+	}()
 
 	fileServer := http.FileServer(http.Dir("/files"))
         mux := http.NewServeMux()
