@@ -8,10 +8,10 @@ import (
 	"github.com/go-git/go-git/plumbing/transport"
 	"github.com/go-git/go-git/plumbing/transport/ssh"
 	"time"
-	//"io/ioutil"
 	 "path/filepath"
         "log"
 	"os/exec"
+	"bufio"
 )
 
 func MyPublicKeys() transport.AuthMethod {
@@ -46,8 +46,21 @@ func dockerInitGit() {
 	fmt.Printf("ref :%s", ref)
 
 }
-func dockerGitCommit(filename string) {
-	r, err := git.PlainOpen("/git/")
+func dockerGitCommit(path, hash string) {
+	kubeCD_log := path +"KubeCD.log"
+	file, err := os.OpenFile(kubeCD_log, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	datawriter := bufio.NewWriter(file)
+
+	datawriter.WriteString("#### Updated hash:" + hash + " ########### " + time.Now().String() + " #####\n")
+	datawriter.WriteString(kubectlStatus())
+
+	datawriter.Flush()
+	file.Close()
+
+	if err != nil {
+		log.Fatalf("failed creating file: %s", err)
+	}
+	r, err := git.PlainOpen(path)
 	if err != nil {
 		fmt.Printf("plain open :%s", err)
 	}
@@ -55,12 +68,12 @@ func dockerGitCommit(filename string) {
 	if err != nil {
 		fmt.Printf("worktree error :%s", err)
 	}
-	w.Add(filename)
+	w.Add("KubeCD.log")
 
-	commit, err2 := w.Commit("Auto-commit server:"+filename, &git.CommitOptions{
+	commit, err2 := w.Commit("Auto-commit server:"+kubeCD_log, &git.CommitOptions{
 		Author: &object.Signature{
-			Name:  "JumpStarter",
-			Email: "jumpstarter@jumpstarter.io",
+			Name:  "KubeCD",
+			Email: "auto@kubecd.io",
 			When:  time.Now(),
 		},
 	})
@@ -143,6 +156,8 @@ func dockerGitUpdate(path string) {
 				kubectlCommand("apply", path + c.To.Name)
 			}
 		}
+		time.Sleep(10 * time.Second)
+		dockerGitCommit(path, ref.Hash().String())
 }
 
 func kubectlCommand(what string, file string) {
@@ -155,14 +170,15 @@ func kubectlCommand(what string, file string) {
 	fmt.Println(output)
 }
 
-func kubectlStatus() {
-	out, err := exec.Command("/kubectl","get", "pods").CombinedOutput()
+func kubectlStatus() string {
+	out, err := exec.Command("/kubectl","get", "pods", "--all-namespaces").CombinedOutput()
 
 	if err != nil {
 		fmt.Printf("Error get status Message:%s", err)
 	}
 	output := string(out[:])
 	fmt.Println(output)
+	return output
 }
 
 func kubeInit(path string) {
@@ -187,7 +203,7 @@ func main() {
 	}
 	for {
 		dockerGitUpdate("/git/")
-		kubectlStatus()
+	//	kubectlStatus()
 		time.Sleep(1 * time.Second)
 	}
 }
