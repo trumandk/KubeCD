@@ -74,7 +74,7 @@ func dockerGitCommit(path, hash string) {
 	datawriter := bufio.NewWriter(file)
 
 	datawriter.WriteString("#### Updated hash:" + hash + " ########### " + time.Now().String() + " #####\n")
-	datawriter.WriteString(kubectlStatus())
+	datawriter.WriteString(kubectlStatus("nodes,pods,services,configmaps"))
 
 	datawriter.Flush()
 	file.Close()
@@ -192,8 +192,8 @@ func kubectlCommand(what string, file string) {
 	fmt.Println(output)
 }
 
-func kubectlStatus() string {
-	out, err := exec.Command("/kubectl","get", "nodes,pods,services,configmaps", "--all-namespaces", "-o", "wide").CombinedOutput()
+func kubectlStatus(what string) string {
+	out, err := exec.Command("/kubectl","get", what, "--all-namespaces", "-o", "wide").CombinedOutput()
 
 	if err != nil {
 		fmt.Printf("Error get status Message:%s", err)
@@ -216,12 +216,23 @@ func kubeInit(path string) {
     })
 }
 func status(w http.ResponseWriter, req *http.Request) {
-	fmt.Fprintf(w, "<head>")
-        fmt.Fprintf(w, "<title>KubeCD</title>")
+	//fmt.Fprintf(w, "<head>")
+        //fmt.Fprintf(w, "<title>KubeCD</title>")
+	menu(w, req)
 	fmt.Fprintf(w, "<pre>")
-        fmt.Fprintf(w, kubectlStatus())
+        fmt.Fprintf(w, kubectlStatus("nodes,pods,services,configmaps"))
 	fmt.Fprintf(w, "</pre>")
 }
+
+func StatusWeb(what string) http.HandlerFunc {
+        return func(w http.ResponseWriter, r *http.Request) {
+	menu(w, r)
+	fmt.Fprintf(w, "<pre>")
+        fmt.Fprintf(w, kubectlStatus(what))
+	fmt.Fprintf(w, "</pre>")
+        }
+}
+
 func main() {
 	if _, err := os.Stat("/git/.git/"); err == nil {
 		fmt.Printf("Using existing git repo \n")
@@ -238,9 +249,15 @@ func main() {
 }()
 
 
-
+	fileServer := http.FileServer(http.Dir("/files"))
         mux := http.NewServeMux()
-        mux.HandleFunc("/", BasicAuth(status))
+	mux.Handle("/files/", http.StripPrefix("/files", fileServer))
+        mux.HandleFunc("/", BasicAuth(StatusWeb("pods")))
+        mux.HandleFunc("/pods", BasicAuth(StatusWeb("pods")))
+        mux.HandleFunc("/nodes", BasicAuth(StatusWeb("nodes")))
+        mux.HandleFunc("/services", BasicAuth(StatusWeb("services")))
+        mux.HandleFunc("/configmaps", BasicAuth(StatusWeb("configmaps")))
+        mux.HandleFunc("/git", BasicAuth(gitWeb))
 	log.Println("Starting server on :8042")
         err := http.ListenAndServe(":8042", mux)
         log.Fatal(err)

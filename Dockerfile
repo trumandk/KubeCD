@@ -14,6 +14,7 @@ RUN go get github.com/tidwall/sjson
 RUN go get github.com/shirou/gopsutil
 
 COPY main.go main.go
+COPY gitWeb.go gitWeb.go
 RUN CGO_ENABLED=0 go build -o /main
 
 FROM alpine
@@ -21,6 +22,7 @@ WORKDIR /
 COPY --from=builder /kubectl /kubectl
 RUN chmod +x /kubectl
 ENV SSH_KNOWN_HOSTS=/root/.ssh/known_hosts
+COPY files/ /files/
 COPY --from=builder /main /main
 ENTRYPOINT ["/main"]
 #ENTRYPOINT ["/kubectl", "get", "pods"]
