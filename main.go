@@ -193,7 +193,7 @@ func kubectlCommand(what string, file string) {
 }
 
 func kubectlStatus() string {
-	out, err := exec.Command("/kubectl","get", "pods", "--all-namespaces").CombinedOutput()
+	out, err := exec.Command("/kubectl","get", "pods,services,configmaps", "--all-namespaces", "-o", "wide").CombinedOutput()
 
 	if err != nil {
 		fmt.Printf("Error get status Message:%s", err)
