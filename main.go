@@ -30,7 +30,6 @@ func BasicAuth(handler http.HandlerFunc) http.HandlerFunc {
                         w.Write([]byte("Unauthorised.\n"))
                         return
                 }
-
                 handler(w, r)
         }
 }
@@ -73,7 +72,7 @@ func dockerGitCommit(path, hash string) {
 	datawriter := bufio.NewWriter(file)
 
 	datawriter.WriteString("#### Updated hash:" + hash + " ########### " + time.Now().String() + " #####\n")
-	datawriter.WriteString(kubectlStatus("nodes,pods,services,configmaps"))
+	datawriter.WriteString(kubectlStatus("/kubectl","get", "nodes,pods,services,configmaps", "--all-namespaces", "-o", "wide"))
 
 	datawriter.Flush()
 	file.Close()
@@ -154,34 +153,31 @@ func dockerGitUpdate(path string) {
 }
 
 func kubectlCommand(path string) string {
-	//exec.Command("/kubectl", "create","namespace", "kubecd").CombinedOutput()
 	out, err := exec.Command("/kubectl", "apply","--prune", "-f", path,"--recursive", "--all", "--wait").CombinedOutput()
 	if err != nil {
 		fmt.Printf("Error updating:%s Message:%s", path, err)
 	}
 	output := string(out[:])
 	return output
-	//fmt.Println(output)
 }
 
-func kubectlStatus(what string) string {
-	out, err := exec.Command("/kubectl","get", what, "--all-namespaces", "-o", "wide").CombinedOutput()
+func CommandWeb(name string, arg ...string) http.HandlerFunc {
+        return func(w http.ResponseWriter, r *http.Request) {
+	menu(w, r)
+	fmt.Fprintf(w, "<pre>")
+        fmt.Fprintf(w, kubectlStatus(name, arg...))
+	fmt.Fprintf(w, "</pre>")
+        }
+}
+
+func kubectlStatus(name string, arg ...string) string {
+	out, err := exec.Command(name, arg...).CombinedOutput()
 
 	if err != nil {
 		fmt.Printf("Error get status Message:%s", err)
 	}
 	output := string(out[:])
-	fmt.Println(output)
 	return output
-}
-
-func StatusWeb(what string) http.HandlerFunc {
-        return func(w http.ResponseWriter, r *http.Request) {
-	menu(w, r)
-	fmt.Fprintf(w, "<pre>")
-        fmt.Fprintf(w, kubectlStatus(what))
-	fmt.Fprintf(w, "</pre>")
-        }
 }
 func ApplyKube(path string) http.HandlerFunc {
         return func(w http.ResponseWriter, r *http.Request) {
@@ -206,19 +202,23 @@ func main() {
 	}()
 
 	fileServer := http.FileServer(http.Dir("/files"))
-	gitFileServer := http.FileServer(http.Dir("/git/"))
+//	gitFileServer := http.FileServer(http.Dir("/git/"))
         mux := http.NewServeMux()
 	mux.Handle("/files/", http.StripPrefix("/files", fileServer))
-	mux.Handle("/gitfiles/", http.StripPrefix("/gitfiles", gitFileServer))
-        mux.HandleFunc("/", BasicAuth(StatusWeb("pods")))
-        mux.HandleFunc("/pods", BasicAuth(StatusWeb("pods")))
-        mux.HandleFunc("/nodes", BasicAuth(StatusWeb("nodes")))
-        mux.HandleFunc("/services", BasicAuth(StatusWeb("services")))
-        mux.HandleFunc("/configmaps", BasicAuth(StatusWeb("configmaps")))
-        mux.HandleFunc("/namespaces", BasicAuth(StatusWeb("namespaces")))
-        mux.HandleFunc("/apply", BasicAuth(ApplyKube("/git/")))
-        mux.HandleFunc("/git", BasicAuth(gitWeb))
+//	mux.Handle("/gitfiles/", BasicAuth(http.StripPrefix("/gitfiles", gitFileServer)))
+
+        mux.HandleFunc("/",		BasicAuth(CommandWeb("/kubectl","get", "pods", "--all-namespaces", "-o", "wide")))
+        mux.HandleFunc("/deployment", 	BasicAuth(CommandWeb("/kubectl","get", "deployment", "--all-namespaces", "-o", "wide")))
+        mux.HandleFunc("/pv", 		BasicAuth(CommandWeb("/kubectl","get", "pv", "--all-namespaces", "-o", "wide")))
+        mux.HandleFunc("/pods", 	BasicAuth(CommandWeb("/kubectl","get", "pods", "--all-namespaces", "-o", "wide")))
+        mux.HandleFunc("/nodes",	BasicAuth(CommandWeb("/kubectl","get", "nodes", "--all-namespaces", "-o", "wide")))
+        mux.HandleFunc("/services",	BasicAuth(CommandWeb("/kubectl","get", "services", "--all-namespaces", "-o", "wide")))
+        mux.HandleFunc("/configmaps",	BasicAuth(CommandWeb("/kubectl","get", "configmaps", "--all-namespaces", "-o", "wide")))
+        mux.HandleFunc("/namespaces",	BasicAuth(CommandWeb("/kubectl","get", "namespaces", "--all-namespaces", "-o", "wide")))
+        mux.HandleFunc("/toppod",	BasicAuth(CommandWeb("/kubectl","top", "pod")))
+        mux.HandleFunc("/topnode",	BasicAuth(CommandWeb("/kubectl","top", "node")))
+        mux.HandleFunc("/apply",	BasicAuth(ApplyKube("/git/")))
+        mux.HandleFunc("/git",		BasicAuth(gitWeb))
 	log.Println("Starting server on :8042")
-        err := http.ListenAndServe(":8042", mux)
-        log.Fatal(err)
+        log.Fatal(http.ListenAndServe(":8042", mux))
 }
