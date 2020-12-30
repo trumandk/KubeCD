@@ -5,7 +5,7 @@ services:
     network_mode: host
     volumes:
       - ~/.ssh/:/root/.ssh/
-      - ~/cluster/:/git/
+        # - ~/cluster/:/git/
       - ~/.kube/config:/root/.kube/config
     environment:
       - GIT_CLUSTER="git@github.com:trumandk/kube-cluster.git"

@@ -7,12 +7,12 @@ import (
 	"github.com/go-git/go-git/plumbing/object"
 	"github.com/go-git/go-git/plumbing/transport"
 	"github.com/go-git/go-git/plumbing/transport/ssh"
-        //auth "github.com/abbot/go-http-auth"
+	"golang.org/x/crypto/bcrypt"
+        auth "github.com/abbot/go-http-auth"
 	"time"
         "log"
 	"net/http"
 	"os/exec"
-	"crypto/subtle"
 	"bufio"
 )
 
@@ -20,27 +20,13 @@ var username = os.Getenv("JUMPSTARTER_USERNAME")
 var password = os.Getenv("JUMPSTARTER_PASSWORD")
 
 func Secret(user, realm string) string {
-        if user == "john" {
-                // password is "hello"
-                return "$1$dlPL2MqE$oQmn16q49SqdmhenQuNgs1"
-        }
-        return ""
-}
-
-func BasicAuth(handler http.HandlerFunc) http.HandlerFunc {
-        realm := "Please enter your username and password for this site"
-        return func(w http.ResponseWriter, r *http.Request) {
-
-                user, pass, ok := r.BasicAuth()
-
-                if !ok || subtle.ConstantTimeCompare([]byte(user), []byte(username)) != 1 || subtle.ConstantTimeCompare([]byte(pass), []byte(password)) != 1 {
-                        w.Header().Set("WWW-Authenticate", `Basic realm="`+realm+`"`)
-                        w.WriteHeader(401)
-                        w.Write([]byte("Unauthorised.\n"))
-                        return
-                }
-                handler(w, r)
-        }
+	if user == username {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err == nil {
+			return string(hashedPassword)
+		}
+	}
+	return ""
 }
 
 func MyPublicKeys() transport.AuthMethod {
@@ -206,9 +192,7 @@ func handleFileServer(dir, prefix string) http.HandlerFunc {
 }
 
 func main() {
-
 	dockerInitGit()
-	fmt.Println(kubectlCommand("/git/"))
 
 	go func() {
 		for {
@@ -218,27 +202,25 @@ func main() {
 		}
 	}()
 
-//authenticator := auth.NewBasicAuthenticator("", Secret)
+	authenticator := auth.NewBasicAuthenticator("", Secret)
 
-	fileServer := http.FileServer(http.Dir("/files"))
-//	gitFileServer := http.FileServer(http.Dir("/git/"))
         mux := http.NewServeMux()
-	mux.Handle("/files/", http.StripPrefix("/files", fileServer))
-//	mux.Handle("/gitfiles/", BasicAuth(http.StripPrefix("/gitfiles", gitFileServer)))
-	mux.HandleFunc("/gitfiles/", BasicAuth(handleFileServer("/git/", "/gitfiles")))
 
-        mux.HandleFunc("/",		BasicAuth(CommandWeb("/kubectl","get", "pods", "--all-namespaces", "-o", "wide")))
-        mux.HandleFunc("/deployment", 	BasicAuth(CommandWeb("/kubectl","get", "deployment", "--all-namespaces", "-o", "wide")))
-        mux.HandleFunc("/pv", 		BasicAuth(CommandWeb("/kubectl","get", "pv", "--all-namespaces", "-o", "wide")))
-        mux.HandleFunc("/pods", 	BasicAuth(CommandWeb("/kubectl","get", "pods", "--all-namespaces", "-o", "wide")))
-        mux.HandleFunc("/nodes",	BasicAuth(CommandWeb("/kubectl","get", "nodes", "--all-namespaces", "-o", "wide")))
-        mux.HandleFunc("/services",	BasicAuth(CommandWeb("/kubectl","get", "services", "--all-namespaces", "-o", "wide")))
-        mux.HandleFunc("/configmaps",	BasicAuth(CommandWeb("/kubectl","get", "configmaps", "--all-namespaces", "-o", "wide")))
-        mux.HandleFunc("/namespaces",	BasicAuth(CommandWeb("/kubectl","get", "namespaces", "--all-namespaces", "-o", "wide")))
-        mux.HandleFunc("/toppod",	BasicAuth(CommandWeb("/kubectl","top", "pod")))
-        mux.HandleFunc("/topnode",	BasicAuth(CommandWeb("/kubectl","top", "node")))
-        mux.HandleFunc("/apply",	BasicAuth(ApplyKube("/git/")))
-        mux.HandleFunc("/git",		BasicAuth(gitWeb))
+	mux.HandleFunc("/files/", auth.JustCheck(authenticator, handleFileServer("/files/", "/files")))
+	mux.HandleFunc("/gitfiles/", auth.JustCheck(authenticator, handleFileServer("/git/", "/gitfiles")))
+
+        mux.HandleFunc("/",		auth.JustCheck(authenticator, CommandWeb("/kubectl","get", "pods", "--all-namespaces", "-o", "wide")))
+        mux.HandleFunc("/deployment", 	auth.JustCheck(authenticator, CommandWeb("/kubectl","get", "deployment", "--all-namespaces", "-o", "wide")))
+        mux.HandleFunc("/pv", 		auth.JustCheck(authenticator, CommandWeb("/kubectl","get", "pv", "--all-namespaces", "-o", "wide")))
+        mux.HandleFunc("/pods", 	auth.JustCheck(authenticator, CommandWeb("/kubectl","get", "pods", "--all-namespaces", "-o", "wide")))
+        mux.HandleFunc("/nodes",	auth.JustCheck(authenticator, CommandWeb("/kubectl","get", "nodes", "--all-namespaces", "-o", "wide")))
+        mux.HandleFunc("/services",	auth.JustCheck(authenticator, CommandWeb("/kubectl","get", "services", "--all-namespaces", "-o", "wide")))
+        mux.HandleFunc("/configmaps",	auth.JustCheck(authenticator, CommandWeb("/kubectl","get", "configmaps", "--all-namespaces", "-o", "wide")))
+        mux.HandleFunc("/namespaces",	auth.JustCheck(authenticator, CommandWeb("/kubectl","get", "namespaces", "--all-namespaces", "-o", "wide")))
+        mux.HandleFunc("/toppod",	auth.JustCheck(authenticator, CommandWeb("/kubectl","top", "pod")))
+        mux.HandleFunc("/topnode",	auth.JustCheck(authenticator, CommandWeb("/kubectl","top", "node")))
+        mux.HandleFunc("/apply",	auth.JustCheck(authenticator, ApplyKube("/git/")))
+        mux.HandleFunc("/git",		auth.JustCheck(authenticator, gitWeb))
 	log.Println("Starting server on :8042")
         log.Fatal(http.ListenAndServe(":8042", mux))
 }
