@@ -148,19 +148,20 @@ func dockerGitUpdate(path string) {
 	}
 	fmt.Printf("pull new files \n")
 	ref, _ := r.Head()
-		kubectlCommand(path)
+		fmt.Println(kubectlCommand(path))
 		time.Sleep(10 * time.Second)
 		dockerGitCommit(path, ref.Hash().String())
 }
 
-func kubectlCommand(path string) {
+func kubectlCommand(path string) string {
 	//exec.Command("/kubectl", "create","namespace", "kubecd").CombinedOutput()
 	out, err := exec.Command("/kubectl", "apply","--prune", "-f", path,"--recursive", "--all", "--wait").CombinedOutput()
 	if err != nil {
 		fmt.Printf("Error updating:%s Message:%s", path, err)
 	}
 	output := string(out[:])
-	fmt.Println(output)
+	return output
+	//fmt.Println(output)
 }
 
 func kubectlStatus(what string) string {
@@ -182,16 +183,24 @@ func StatusWeb(what string) http.HandlerFunc {
 	fmt.Fprintf(w, "</pre>")
         }
 }
+func ApplyKube(path string) http.HandlerFunc {
+        return func(w http.ResponseWriter, r *http.Request) {
+	menu(w, r)
+	fmt.Fprintf(w, "<pre>")
+        fmt.Fprintf(w, kubectlCommand(path))
+	fmt.Fprintf(w, "</pre>")
+        }
+}
 
 func main() {
 
 	dockerInitGit()
-	kubectlCommand("/git/")
+	fmt.Println(kubectlCommand("/git/"))
 
 	go func() {
 		for {
 			dockerGitUpdate("/git/")
-			kubectlCommand("/git/")
+			fmt.Println(kubectlCommand("/git/"))
 			time.Sleep(1 * time.Second)
 		}
 	}()
@@ -205,6 +214,7 @@ func main() {
         mux.HandleFunc("/services", BasicAuth(StatusWeb("services")))
         mux.HandleFunc("/configmaps", BasicAuth(StatusWeb("configmaps")))
         mux.HandleFunc("/namespaces", BasicAuth(StatusWeb("namespaces")))
+        mux.HandleFunc("/apply", BasicAuth(ApplyKube("/git/")))
         mux.HandleFunc("/git", BasicAuth(gitWeb))
 	log.Println("Starting server on :8042")
         err := http.ListenAndServe(":8042", mux)
