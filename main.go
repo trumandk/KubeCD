@@ -154,8 +154,8 @@ func dockerGitUpdate(path string) {
 }
 
 func kubectlCommand(path string) {
-	exec.Command("/kubectl", "create","namespace", "kubecd").CombinedOutput()
-	out, err := exec.Command("/kubectl", "apply","--prune", "-f", path,"--recursive", "--all", "--wait", "--namespace", "kubecd").CombinedOutput()
+	//exec.Command("/kubectl", "create","namespace", "kubecd").CombinedOutput()
+	out, err := exec.Command("/kubectl", "apply","--prune", "-f", path,"--recursive", "--all", "--wait").CombinedOutput()
 	if err != nil {
 		fmt.Printf("Error updating:%s Message:%s", path, err)
 	}
