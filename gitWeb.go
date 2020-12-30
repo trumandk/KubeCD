@@ -15,7 +15,7 @@ func menu(w http.ResponseWriter, req *http.Request) {
         fmt.Fprintf(w, "<link rel=\"stylesheet\" href=\"files/bootstrap.css\">")
         fmt.Fprintf(w, "<script src=\"files/bootstrap.js\"></script>")
         fmt.Fprintf(w, "<body>")
-        fmt.Fprintf(w, "<nav class=\"navbar navbar-expand-lg navbar-dark bg-dark\">")
+        fmt.Fprintf(w, "<nav class=\"navbar navbar-expand-lg navbar-dark bg-primary\">")
         fmt.Fprintf(w, "<a class=\"navbar-brand\" href=\"/pods\">Pods</a>")
         fmt.Fprintf(w, "<a class=\"navbar-brand\" href=\"/deployment\">Deployment</a>")
         fmt.Fprintf(w, "<a class=\"navbar-brand\" href=\"/nodes\">Nodes</a>")
