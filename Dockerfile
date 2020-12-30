@@ -12,7 +12,7 @@ RUN go get github.com/sparrc/go-ping
 RUN go get github.com/docker/docker/client
 RUN go get github.com/tidwall/sjson
 RUN go get github.com/shirou/gopsutil
-
+RUN go get github.com/abbot/go-http-auth
 COPY main.go main.go
 COPY gitWeb.go gitWeb.go
 RUN CGO_ENABLED=0 go build -o /main
