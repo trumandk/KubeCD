@@ -206,8 +206,10 @@ func main() {
 	}()
 
 	fileServer := http.FileServer(http.Dir("/files"))
+	gitFileServer := http.FileServer(http.Dir("/git/"))
         mux := http.NewServeMux()
 	mux.Handle("/files/", http.StripPrefix("/files", fileServer))
+	mux.Handle("/gitfiles/", http.StripPrefix("/gitfiles", gitFileServer))
         mux.HandleFunc("/", BasicAuth(StatusWeb("pods")))
         mux.HandleFunc("/pods", BasicAuth(StatusWeb("pods")))
         mux.HandleFunc("/nodes", BasicAuth(StatusWeb("nodes")))
