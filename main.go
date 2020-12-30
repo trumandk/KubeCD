@@ -159,6 +159,12 @@ func kubectlCommand(path string) string {
 func CommandWeb(name string, arg ...string) http.HandlerFunc {
         return func(w http.ResponseWriter, r *http.Request) {
 	menu(w, r)
+	fmt.Fprintf(w, "<p><b>")
+	fmt.Fprintf(w, name)
+	for _, n := range arg {
+		fmt.Fprintf(w, " " + n)
+	}
+	fmt.Fprintf(w, "</b></p>")
 	fmt.Fprintf(w, "<pre>")
         fmt.Fprintf(w, kubectlStatus(name, arg...))
 	fmt.Fprintf(w, "</pre>")
