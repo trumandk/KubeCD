@@ -227,6 +227,7 @@ func main() {
         mux.HandleFunc("/topnode",	auth.JustCheck(authenticator, CommandWeb("/kubectl","top", "node")))
         mux.HandleFunc("/apply",	auth.JustCheck(authenticator, ApplyKube("/git/")))
         mux.HandleFunc("/git",		auth.JustCheck(authenticator, gitWeb))
+        mux.HandleFunc("/events",	auth.JustCheck(authenticator, CommandWeb("/kubectl", "get", "events", "--sort-by=.metadata.creationTimestamp", "--all-namespaces")))
 	log.Println("Starting server on :8042")
         log.Fatal(http.ListenAndServe(":8042", mux))
 }
