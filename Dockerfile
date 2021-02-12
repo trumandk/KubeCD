@@ -14,7 +14,7 @@ RUN go get github.com/tidwall/sjson
 RUN go get github.com/shirou/gopsutil
 RUN go get github.com/abbot/go-http-auth
 COPY main.go main.go
-COPY gitWeb.go gitWeb.go
+COPY menu.go menu.go
 RUN CGO_ENABLED=0 go build -o /main
 
 FROM alpine
