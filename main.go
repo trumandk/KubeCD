@@ -76,5 +76,6 @@ func main() {
         mux.HandleFunc("/topnode",	CommandWeb("/kubectl","top", "node"))
         mux.HandleFunc("/events",	CommandWeb("/kubectl", "get", "events", "--sort-by=.metadata.creationTimestamp", "--all-namespaces"))
 	log.Println("Starting server on :8080")
+	
         log.Fatal(http.ListenAndServe(":8080", mux))
 }
